@@ -1,9 +1,0 @@
-[submodule "cmake"]
-	path = cmake
-	url = git@git.okocenter.ru:externals/cmake.git
-[submodule "redist/ffmpeg"]
-	path = redist/ffmpeg
-	url = git@git.okocenter.ru:externals/ffmpeg_bin.git
-[submodule "redist/QtAV"]
-	path = redist/QtAV
-	url = git@git.okocenter.ru:externals/QtAv.git
