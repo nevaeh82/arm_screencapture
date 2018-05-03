@@ -1,0 +1,43 @@
+if(EXIV2_INCLUDE_DIR AND EXIV2_LIBRARY)
+	set(EXIV2_FIND_QUIETLY TRUE)
+endif(EXIV2_INCLUDE_DIR AND EXIV2_LIBRARY)
+
+find_path(EXIV2_INCLUDE_DIR exiv2/exif.hpp
+	PATHS ${PROJECT_BASE_DIR}/redist/libexiv2/${FULL_QT_VERSION}/include_${SPEC})
+
+if (MSVC)
+
+if(CMAKE_BUILD_TYPEUP STREQUAL DEBUG AND WIN32)
+    set(EXIV_BUILD_TYPE "Debug")
+else()
+    set(EXIV_BUILD_TYPE "Release")
+endif()
+
+find_library(EXIV2_LIBRARY libexiv2
+	PATHS ${PROJECT_BASE_DIR}/redist/libexiv2/${FULL_QT_VERSION}/lib_${SPEC}/${EXIV_BUILD_TYPE})
+
+find_library(LZ_LIBRARY zlib1
+    PATHS ${PROJECT_BASE_DIR}/redist/libexiv2/${FULL_QT_VERSION}/lib_${SPEC}/${EXIV_BUILD_TYPE})
+
+find_library(XMP_LIBRARY xmpsdk
+    PATHS ${PROJECT_BASE_DIR}/redist/libexiv2/${FULL_QT_VERSION}/lib_${SPEC}/${EXIV_BUILD_TYPE})
+
+set(EXIV2_LIBRARY ${EXIV2_LIBRARY} ${LZ_LIBRARY} ${XMP_LIBRARY} psapi.lib ws2_32.lib )
+
+else()
+    find_library(EXIV2_LIBRARY exiv2
+	    PATHS ${PROJECT_BASE_DIR}/redist/libexiv2/${FULL_QT_VERSION}/lib_${SPEC})
+	if (WIN32)
+		set(EXIV2_LIBRARY ${EXIV2_LIBRARY} -lz -liconv -lpsapi -lws2_32 )
+	endif()
+endif()
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(EXIV2 DEFAULT_MSG EXIV2_LIBRARY EXIV2_INCLUDE_DIR)
+
+MARK_AS_ADVANCED(
+	EXIV2_INCLUDE_DIR
+	EXIV2_LIBRARY
+)
+
+include_directories(SYSTEM "${EXIV2_INCLUDE_DIR}")

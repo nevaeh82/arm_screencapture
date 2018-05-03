@@ -1,0 +1,24 @@
+if(MARBLE_INCLUDE_DIR AND MARBLE_LIBRARIES)
+	set(MARBLE_FIND_QUIETLY TRUE)
+endif(MARBLE_INCLUDE_DIR AND MARBLE_LIBRARIES)
+
+set(MARBLE_LIBS "libastro" "libmarblewidget-qt5")
+
+find_path(MARBLE_INCLUDE_DIR
+	MarbleWidget.h
+	PATHS ${PROJECT_BASE_DIR}/redist/marble/sources/include)
+
+foreach(item ${MARBLE_LIBS})
+	find_library(${item}_MARBLE_ITEM
+			${item} lib${item}
+			PATHS ${PROJECT_BASE_DIR}/redist/marble/lib_${SPEC})
+	set(MARBLE_LIBRARIES ${MARBLE_LIBRARIES} ${${item}_MARBLE_ITEM})
+endforeach()
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(MARBLE DEFAULT_MSG MARBLE_LIBRARIES MARBLE_INCLUDE_DIR)
+
+MARK_AS_ADVANCED(
+	MARBLE_INCLUDE_DIR
+	MARBLE_LIBRARIES
+)

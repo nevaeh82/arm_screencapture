@@ -1,0 +1,272 @@
+enable_testing()
+
+if (NOT ORGANIZATION_NAME)
+	set(ORGANIZATION_NAME "NPP NTT")
+endif()
+
+if (NOT PROJECT_NAME_GLOBAL)
+	set(PROJECT_NAME_GLOBAL ${PROJECT_NAME})
+endif()
+
+if (NOT PROJECT_NAME_LOW)
+	string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOW)
+endif()
+
+if (NOT CONF_SUB_PATH)
+	set(CONF_SUB_PATH "${PROJECT_NAME_LOW}")
+endif()
+
+if(NOT SPEC OR NOT HOST)
+	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+		set(HOST linux)
+		if(CMAKE_SYSTEM_PROCESSOR STREQUAL "i686")
+			set(SPEC linux)
+		elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+			set(SPEC arm)
+		elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+			set(SPEC astra)
+		endif()
+	elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		set(HOST win32)
+		if(MSVC)
+			set(SPEC msvc)
+		else()
+			set(SPEC mingw)
+		endif()
+	endif()
+endif()
+
+set(MOC_ARGS "-nn")
+set(CMAKE_AUTOMOC_MOC_OPTIONS "-nn")
+
+if(HOST STREQUAL "linux")
+	if(NOT PYTHON)
+		set(PYTHON "python2")
+	endif()
+else()
+	set(PYTHON "python")
+endif()
+
+message(STATUS "PYTHON: ${PYTHON}")
+message(STATUS "MOC_ARGS: ${MOC_ARGS}")
+
+set(PROJECT_BASE_DIR ${PROJECT_SOURCE_DIR})
+
+if(LIB_INSTALL_DIR)
+	set(LIBDIR ${LIB_INSTALL_DIR})
+endif(LIB_INSTALL_DIR)
+
+if(NOT LIBDIR)
+	if(WIN32)
+		set(LIBDIR .)
+	else(WIN32)
+		set(LIBDIR lib/${PROJECT_NAME_LOW})
+	endif(WIN32)
+endif(NOT LIBDIR)
+
+if(NOT BINDIR)
+	if(WIN32)
+		set(BINDIR .)
+	elseif(UNIX)
+		set(BINDIR bin)
+		if(APPLE)
+			set(BUNDLEDIR .)
+		endif(APPLE)
+	endif(WIN32)
+endif()
+
+message(STATUS "Binary directory: ${CMAKE_INSTALL_PREFIX}/${BINDIR}")
+message(STATUS "Library directory: ${CMAKE_INSTALL_PREFIX}/${LIBDIR}")
+
+if(INSTALL_RUNTIME_PATH)
+	set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIBDIR};./")
+endif(INSTALL_RUNTIME_PATH)
+
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+endif(NOT CMAKE_BUILD_TYPE)
+
+string( TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPEUP)
+
+if(CMAKE_BUILD_TYPEUP STREQUAL DEBUG AND WIN32)
+	set(BICYCLE_DEBUG_POSTFIX "d")
+endif()
+
+if(NOT SHARE_DIR)
+	set(SHARE_DIR "share")
+endif(NOT SHARE_DIR)
+
+if(NOT CLIENT_DATA_DIR_COMMON_PREFIX)
+	set(CLIENT_DATA_DIR_COMMON_PREFIX ".common")
+endif(NOT CLIENT_DATA_DIR_COMMON_PREFIX)
+
+message(STATUS "Data common prefix: ${CLIENT_DATA_DIR_COMMON_PREFIX}")
+
+if(APPLE)
+	add_definitions(-DAPPLE)
+endif(APPLE)
+
+if(NOT CLIENT_DATA_DIR)
+	if(APPLE)
+		set(CLIENT_DATA_DIR "${PROJECT_NAME_GLOBAL}.app")
+	elseif(WIN32 OR HAIKU)
+		set(CLIENT_DATA_DIR "${SHARE_DIR}")
+	else(APPLE)
+		set(CLIENT_DATA_DIR "${CMAKE_INSTALL_PREFIX}/${SHARE_DIR}/${PROJECT_NAME_LOW}")
+	endif(APPLE)
+endif(NOT CLIENT_DATA_DIR)
+
+message(STATUS "Data directory: ${CLIENT_DATA_DIR}")
+
+if(UNIX)
+add_definitions(-D_GNU_SOURCE)
+endif(UNIX)
+
+add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+	if (CMAKE_CROSS_COMPILING)
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -D_GLIBCXX_USE_CXX11_ABI=0")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+	endif()
+	if (UNIX)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+	endif()
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wformat -Werror=format-security -Wall -Wextra -Werror=return-type -fdata-sections -ffunction-sections")
+	if(NOT WIN32 AND USE_LTO)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto -fwhole-program")
+	endif()
+
+	if(NOT WIN32 AND USE_SANITIZER_LEAK)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak")
+	endif()
+
+	if(NOT WIN32 AND USE_SANITIZER_ADDR)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+	endif()
+
+	if(NOT WIN32 AND USE_SANITIZER_THREAD)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread")
+	endif()
+
+	if(NOT WIN32 AND USE_SANITIZER_KERNEL_ADDR)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=kernel-address")
+	endif()
+
+	if(NOT WIN32 AND USE_SANITIZER_UNDEFINED)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=undefined")
+	endif()
+
+	if(WIN32)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mno-ms-bitfields")
+	endif()
+	set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS} -std=gnu++11")
+
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+
+	if (UNIX)
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fPIC")
+	endif()
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed -Wl,--gc-sections")
+	if(WIN32)
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--large-address-aware")
+	endif(WIN32)
+
+	if(CMAKE_BUILD_TYPE STREQUAL "Release")
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--strip-all")
+	endif()
+endif()
+
+if(USE_COVERAGE AND CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+	 include(CodeCoverage)
+endif()
+
+option(LANGUAGES "Using translations")
+list(APPEND AllLanguages ru)
+if(NOT DEFINED linguas)
+	set(LANGUAGES ${AllLanguages} CACHE STRING "Using translations" FORCE)
+else(NOT DEFINED linguas)
+	if(NOT linguas)
+	set(LANGUAGES "" CACHE STRING "Using translations" FORCE)
+	elseif(linguas STREQUAL *)
+		set(LANGUAGES ${AllLanguages} CACHE STRING "Using translations" FORCE)
+	else(NOT linguas)
+	string(REGEX MATCHALL [a-zA-Z_@]+
+			 linguas1 ${linguas})
+	set(LANGUAGES ${linguas1} CACHE STRING "Using translations" FORCE)
+	endif(NOT linguas)
+endif(NOT DEFINED linguas)
+message(STATUS "Translations: ${LANGUAGES}")
+
+message(STATUS "CMAKE_SYSTEM: ${CMAKE_SYSTEM}")
+message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_C_COMPILER_ID: ${CMAKE_C_COMPILER_ID}")
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+message(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+message(STATUS "CMAKE_C_FLAGS_RELEASE: ${CMAKE_C_FLAGS_RELEASE}")
+message(STATUS "CMAKE_C_FLAGS_MINSIZEREL: ${CMAKE_C_FLAGS_MINSIZEREL}")
+message(STATUS "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
+message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL: ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
+message(STATUS "CMAKE_COMMAND: ${CMAKE_COMMAND}")
+
+configure_file(
+	"${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
+	"${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+	IMMEDIATE @ONLY)
+add_custom_target(uninstall
+	"${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+
+# try to get qt version (mostly for qt 5)
+if( NOT QT_VERSION_MAJOR OR NOT QT_VERSION_MINOR )
+	execute_process( COMMAND qmake -query QT_VERSION OUTPUT_VARIABLE QT_VERSION )
+
+	string( REGEX REPLACE "\\..+" "" QT_VERSION_MAJOR "${QT_VERSION}" )
+	string( REGEX REPLACE "^[^.]+\\.([^.]+).*" "\\1" QT_VERSION_MINOR "${QT_VERSION}" )
+endif()
+
+set(QT_VERSION_API ${QT_VERSION_MAJOR}.${QT_VERSION_MINOR})
+set(FULL_QT_VERSION ${QT_VERSION_API})
+
+set(PROJECT_VERSION_STUB "1.0.0")
+
+if(NOT PROJECTVERSION)
+	if (GIT_FOUND)
+		execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --long
+					WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+					OUTPUT_VARIABLE PROJECTVERSION
+					OUTPUT_STRIP_TRAILING_WHITESPACE)
+		if( PROJECTVERSION )
+			string( REGEX REPLACE "\\-g" "." PROJECTVERSION ${PROJECTVERSION} )
+			string( REGEX REPLACE "\\-" "." PROJECTVERSION ${PROJECTVERSION} )
+		else()
+			set(PROJECTVERSION ${PROJECT_VERSION_STUB})
+		endif()
+	else()
+		set(PROJECTVERSION ${PROJECT_VERSION_STUB})
+	endif()
+endif()
+
+if( PROJECTVERSION )
+	message(STATUS "Build Version: ${PROJECTVERSION}")
+	string( REGEX REPLACE "\\..+" "" PROJECTVERSION_MAJOR ${PROJECTVERSION} )
+	string( REGEX REPLACE "^[^.]+\\.([^.]+).*" "\\1" PROJECTVERSION_MINOR ${PROJECTVERSION} )
+	if (PROJECTVERSION_MINOR STREQUAL PROJECTVERSION)
+		set(PROJECTVERSION_MINOR "0")
+	endif()
+	string( REGEX REPLACE "^[^.]+\\.[^.]+\\.([^.]+).*" "\\1" PROJECTVERSION_PATCH ${PROJECTVERSION} )
+	if (PROJECTVERSION_PATCH STREQUAL PROJECTVERSION)
+		set(PROJECTVERSION_PATCH "0")
+	endif()
+	string( REGEX REPLACE "^[^.]+\\.[^.]+\\.[^.]+\\.([^.]+).*" "\\1" PROJECTVERSION_VCS_REVISION ${PROJECTVERSION} )
+	if (PROJECTVERSION_VCS_REVISION STREQUAL PROJECTVERSION)
+		set(PROJECTVERSION_VCS_REVISION "")
+	endif()
+endif()
